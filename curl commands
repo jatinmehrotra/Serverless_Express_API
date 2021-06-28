@@ -1,0 +1,139 @@
+curl -H "Content-Type: application/json" -X PUT https://3469t9kwr1.execute-api.ap-southeast-1.amazonaws.com/dev/user/update/1 -d '{"name": "Alex DeBrie"}'
+
+
+curl -H "Content-Type: application/json" -X GET  https://3469t9kwr1.execute-api.ap-southeast-1.amazonaws.com/dev/user/read/1
+
+curl -H "Content-Type: application/json" -X DELETE  https://3469t9kwr1.execute-api.ap-southeast-1.amazonaws.com/dev/user/delete/1 
+
+curl -H "Content-Type: application/json" -X POST https://3469t9kwr1.execute-api.ap-southeast-1.amazonaws.com/dev/user/create -d '{"id":"1","name": "Alex DeBrie"}'
+
+serverless remove --aws-profile personal
+
+npx express-generator --view=hbs
+
+mkdir serverless_blog;cd serverless_blog
+npm install ; npm i serverless-http
+
+const serverless = require('serverless-http');
+app.use('/', indexRouter);
+app.use('/users',usersRouter);
+
+//module.exports = app;
+module.exports.handler = serverless(app);
+
+router.post('/createUser', function(req, res, next) {
+  
+    const { id, name } = req.body;
+    if (typeof id !== 'string') {
+      res.status(400).json({ error: '"userId" must be a string' });
+    } else if (typeof name !== 'string') {
+      res.status(400).json({ error: '"name" must be a string' });
+    }
+  
+    const params = {
+      TableName: 'Notes',
+      Item: {
+        id: id,
+        name: name,
+      },
+    };
+  
+    dynamoDb.put(params, (error) => {
+      if (error) {
+        console.log(error);
+        res.status(400).json({ error: 'Could not create user' });
+      }
+      res.json({ id, name });
+    });
+  })
+  
+
+  router.post("/readUser", async function (req, res) {
+    id=req.body.id
+    res.redirect('/dev/users/readUser/' + id)
+  })
+
+
+  router.get("/readUser/:id", async function (req, res) {
+    
+    const params = {
+      TableName: 'Notes',
+      Key: {
+        id: req.params.id,
+      },
+    };
+  
+    try {
+      dynamoDb.get(params, function (err, data) {
+        if (!data) {
+          res.status(400).json({ error: 'Could not create user' });
+        }
+        else {
+          res.status(200).json(data);
+        }
+    })
+}
+      
+     catch (error) {
+      console.log(error);
+      res.status(500).json({ error: "Could not retreive user" });
+    }
+  });
+
+
+touch serverless.yml
+service: node-serverless-api
+# app and org for use with dashboard.serverless.com
+app: node-serverless-api
+org: jatinjmehrotra
+
+# You can pin your service to only deploy with a specific Serverless version
+# Check out our docs for more details
+frameworkVersion: "2"
+
+provider:
+  name: aws
+  runtime: nodejs12.x
+  lambdaHashingVersion: 20201221
+  region:ap-southeast-1
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - dynamodb:DescribeTable
+            - dynamodb:Query
+            - dynamodb:Scan
+            - dynamodb:GetItem
+            - dynamodb:PutItem
+            - dynamodb:UpdateItem
+            - dynamodb:DeleteItem
+          Resource: arn:aws:dynamodb:us-east-1:*:*
+
+resources:
+  Resources:
+    NotesTable:
+      Type: "AWS::DynamoDB::Table"
+      DeletionPolicy: Retain
+      Properties:
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+        TableName: "Notes"
+
+functions:
+  hello:
+    handler: app.handler
+    events:
+      - http:
+          path: /
+          method: ANY
+      - http:
+          path: /{proxy+}
+          method: ANY
